@@ -427,11 +427,13 @@ def main():
         return 1
     
     try:
+        # 初始化配置路径
+        config_path = args.config
+        
         # 处理可视化参数
         if args.enable_viz or args.save_pose or args.save_anomaly or args.save_comparison or args.save_charts:
             # 动态更新配置以启用可视化
             import yaml
-            config_path = args.config
             if os.path.exists(config_path):
                 with open(config_path, 'r', encoding='utf-8') as f:
                     config = yaml.safe_load(f)

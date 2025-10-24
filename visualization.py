@@ -12,23 +12,23 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import json
 
-# ³¢ÊÔµ¼Èë¿ÉÊÓ»¯ÒÀÀµ£¬Èç¹ûÊ§°ÜÔòÌá¹©½µ¼¶¹¦ÄÜ
+# å°è¯•å¯¼å…¥å¯è§†åŒ–ä¾èµ–ï¼Œå¦‚æœå¤±è´¥åˆ™æä¾›é™çº§åŠŸèƒ½
 try:
     import matplotlib.pyplot as plt
     MATPLOTLIB_AVAILABLE = True
-    # ÉèÖÃmatplotlibÖĞÎÄ×ÖÌå
+    # è®¾ç½®matplotlibä¸­æ–‡å­—ä½“
     plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']
     plt.rcParams['axes.unicode_minus'] = False
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
-    print("¾¯¸æ: matplotlibÎ´°²×°£¬Í³¼ÆÍ¼±í¹¦ÄÜ²»¿ÉÓÃ")
+    print("è­¦å‘Š: matplotlibæœªå®‰è£…ï¼Œç»Ÿè®¡å›¾è¡¨åŠŸèƒ½ä¸å¯ç”¨")
 
 try:
     import seaborn as sns
     SEABORN_AVAILABLE = True
 except ImportError:
     SEABORN_AVAILABLE = False
-    print("¾¯¸æ: seabornÎ´°²×°£¬¸ß¼¶Í¼±í¹¦ÄÜ²»¿ÉÓÃ")
+    print("è­¦å‘Š: seabornæœªå®‰è£…ï¼Œé«˜çº§å›¾è¡¨åŠŸèƒ½ä¸å¯ç”¨")
 
 try:
     import plotly.graph_objects as go
@@ -37,34 +37,34 @@ try:
     PLOTLY_AVAILABLE = True
 except ImportError:
     PLOTLY_AVAILABLE = False
-    print("¾¯¸æ: plotlyÎ´°²×°£¬½»»¥Ê½ÒÇ±í°å¹¦ÄÜ²»¿ÉÓÃ")
+    print("è­¦å‘Š: plotlyæœªå®‰è£…ï¼Œäº¤äº’å¼ä»ªè¡¨æ¿åŠŸèƒ½ä¸å¯ç”¨")
 
 try:
     from PIL import Image
     PILLOW_AVAILABLE = True
 except ImportError:
     PILLOW_AVAILABLE = False
-    print("¾¯¸æ: PillowÎ´°²×°£¬Í¼Ïñ´¦Àí¹¦ÄÜ¿ÉÄÜÊÜÏŞ")
+    print("è­¦å‘Š: Pillowæœªå®‰è£…ï¼Œå›¾åƒå¤„ç†åŠŸèƒ½å¯èƒ½å—é™")
 
 class VideoVisualizer:
-    """ÊÓÆµÖÊÁ¿ÆÀ¹À¿ÉÊÓ»¯Æ÷"""
+    """è§†é¢‘è´¨é‡è¯„ä¼°å¯è§†åŒ–å™¨"""
     
     def __init__(self, config: dict):
         """
-        ³õÊ¼»¯¿ÉÊÓ»¯Æ÷
+        åˆå§‹åŒ–å¯è§†åŒ–å™¨
         
         Args:
-            config: ÅäÖÃ×Öµä
+            config: é…ç½®å­—å…¸
         """
         self.config = config
         self.viz_config = config.get('visualization', {})
         self.output_dir = config.get('output', {}).get('output_dir', './results')
         self.viz_dir = config.get('output', {}).get('visualization_dir', './results/visualizations')
         
-        # ´´½¨¿ÉÊÓ»¯Êä³öÄ¿Â¼
+        # åˆ›å»ºå¯è§†åŒ–è¾“å‡ºç›®å½•
         os.makedirs(self.viz_dir, exist_ok=True)
         
-        # ¿ÉÊÓ»¯²ÎÊı
+        # å¯è§†åŒ–å‚æ•°
         self.pose_skeleton_color = tuple(self.viz_config.get('pose_skeleton_color', [0, 255, 0]))
         self.anomaly_color = tuple(self.viz_config.get('anomaly_color', [0, 0, 255]))
         self.confidence_color = tuple(self.viz_config.get('confidence_color', [255, 0, 0]))
@@ -73,18 +73,18 @@ class VideoVisualizer:
         self.show_confidence = self.viz_config.get('show_confidence', True)
         self.show_keypoint_names = self.viz_config.get('show_keypoint_names', False)
         
-        # ×ËÌ¬¹Ç¼ÜÁ¬½Ó¶¨Òå (YOLO-Pose 17¸ö¹Ø¼üµã)
+        # å§¿æ€éª¨æ¶è¿æ¥å®šä¹‰ (YOLO-Pose 17ä¸ªå…³é”®ç‚¹)
         self.skeleton_connections = [
-            # Í·²¿
-            (0, 1), (0, 2), (1, 3), (2, 4),  # ±Ç×Ó-ÑÛ¾¦-¶ú¶ä
-            # ÉÏÉí
-            (5, 6), (5, 7), (6, 8), (7, 9), (8, 10),  # ¼ç°ò-Öâ²¿-ÊÖÍó
-            # ÏÂÉí
-            (5, 11), (6, 12), (11, 12),  # ¼ç°ò-ÍÎ²¿
-            (11, 13), (12, 14), (13, 15), (14, 16)  # ÍÎ²¿-Ï¥¸Ç-½Åõ×
+            # å¤´éƒ¨
+            (0, 1), (0, 2), (1, 3), (2, 4),  # é¼»å­-çœ¼ç›-è€³æœµ
+            # ä¸Šèº«
+            (5, 6), (5, 7), (6, 8), (7, 9), (8, 10),  # è‚©è†€-è‚˜éƒ¨-æ‰‹è…•
+            # ä¸‹èº«
+            (5, 11), (6, 12), (11, 12),  # è‚©è†€-è‡€éƒ¨
+            (11, 13), (12, 14), (13, 15), (14, 16)  # è‡€éƒ¨-è†ç›–-è„šè¸
         ]
         
-        # ¹Ø¼üµãÃû³Æ
+        # å…³é”®ç‚¹åç§°
         self.keypoint_names = [
             'nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
             'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow',
@@ -95,20 +95,20 @@ class VideoVisualizer:
     def draw_pose_skeleton(self, image: np.ndarray, keypoints: np.ndarray, 
                           confidence: float = None, anomalies: List[int] = None) -> np.ndarray:
         """
-        ÔÚÍ¼ÏñÉÏ»æÖÆ×ËÌ¬¹Ç¼Ü
+        åœ¨å›¾åƒä¸Šç»˜åˆ¶å§¿æ€éª¨æ¶
         
         Args:
-            image: ÊäÈëÍ¼Ïñ
-            keypoints: ¹Ø¼üµã×ø±ê (17, 2)
-            confidence: ¼ì²âÖÃĞÅ¶È
-            anomalies: Òì³£¹Ø¼üµãË÷ÒıÁĞ±í
+            image: è¾“å…¥å›¾åƒ
+            keypoints: å…³é”®ç‚¹åæ ‡ (17, 2)
+            confidence: æ£€æµ‹ç½®ä¿¡åº¦
+            anomalies: å¼‚å¸¸å…³é”®ç‚¹ç´¢å¼•åˆ—è¡¨
             
         Returns:
-            »æÖÆÁË¹Ç¼ÜµÄÍ¼Ïñ
+            ç»˜åˆ¶äº†éª¨æ¶çš„å›¾åƒ
         """
         vis_image = image.copy()
         
-        # »æÖÆ¹Ç¼ÜÁ¬½Ó
+        # ç»˜åˆ¶éª¨æ¶è¿æ¥
         for connection in self.skeleton_connections:
             pt1_idx, pt2_idx = connection
             if (pt1_idx < len(keypoints) and pt2_idx < len(keypoints) and
@@ -118,32 +118,32 @@ class VideoVisualizer:
                 pt1 = tuple(map(int, keypoints[pt1_idx]))
                 pt2 = tuple(map(int, keypoints[pt2_idx]))
                 
-                # ¼ì²éÊÇ·ñÎªÒì³£Á¬½Ó
+                # æ£€æŸ¥æ˜¯å¦ä¸ºå¼‚å¸¸è¿æ¥
                 is_anomaly = (anomalies and (pt1_idx in anomalies or pt2_idx in anomalies))
                 color = self.anomaly_color if is_anomaly else self.pose_skeleton_color
                 thickness = self.line_thickness + 1 if is_anomaly else self.line_thickness
                 
                 cv2.line(vis_image, pt1, pt2, color, thickness)
         
-        # »æÖÆ¹Ø¼üµã
+        # ç»˜åˆ¶å…³é”®ç‚¹
         for i, (x, y) in enumerate(keypoints):
             if x > 0 and y > 0:
                 pt = (int(x), int(y))
                 
-                # ¼ì²éÊÇ·ñÎªÒì³£¹Ø¼üµã
+                # æ£€æŸ¥æ˜¯å¦ä¸ºå¼‚å¸¸å…³é”®ç‚¹
                 is_anomaly = anomalies and i in anomalies
                 color = self.anomaly_color if is_anomaly else self.pose_skeleton_color
                 radius = 4 if is_anomaly else 3
                 
                 cv2.circle(vis_image, pt, radius, color, -1)
                 
-                # ÏÔÊ¾¹Ø¼üµãÃû³Æ
+                # æ˜¾ç¤ºå…³é”®ç‚¹åç§°
                 if self.show_keypoint_names and i < len(self.keypoint_names):
                     cv2.putText(vis_image, self.keypoint_names[i], 
                               (pt[0] + 5, pt[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 
                               self.font_scale, color, 1)
         
-        # ÏÔÊ¾ÖÃĞÅ¶È
+        # æ˜¾ç¤ºç½®ä¿¡åº¦
         if self.show_confidence and confidence is not None:
             conf_text = f"Confidence: {confidence:.2f}"
             cv2.putText(vis_image, conf_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
@@ -154,31 +154,31 @@ class VideoVisualizer:
     def create_comparison_image(self, original: np.ndarray, detected: np.ndarray, 
                               title: str = "Pose Detection Comparison") -> np.ndarray:
         """
-        ´´½¨Ô­Ê¼Í¼ÏñÓë¼ì²â½á¹ûµÄ¶Ô±ÈÍ¼
+        åˆ›å»ºåŸå§‹å›¾åƒä¸æ£€æµ‹ç»“æœçš„å¯¹æ¯”å›¾
         
         Args:
-            original: Ô­Ê¼Í¼Ïñ
-            detected: ¼ì²â½á¹ûÍ¼Ïñ
-            title: ¶Ô±ÈÍ¼±êÌâ
+            original: åŸå§‹å›¾åƒ
+            detected: æ£€æµ‹ç»“æœå›¾åƒ
+            title: å¯¹æ¯”å›¾æ ‡é¢˜
             
         Returns:
-            ¶Ô±ÈÍ¼Ïñ
+            å¯¹æ¯”å›¾åƒ
         """
-        # È·±£Á½¸öÍ¼Ïñ´óĞ¡Ò»ÖÂ
+        # ç¡®ä¿ä¸¤ä¸ªå›¾åƒå¤§å°ä¸€è‡´
         h1, w1 = original.shape[:2]
         h2, w2 = detected.shape[:2]
         
         if h1 != h2 or w1 != w2:
             detected = cv2.resize(detected, (w1, h1))
         
-        # Ë®Æ½Æ´½Ó
+        # æ°´å¹³æ‹¼æ¥
         comparison = np.hstack([original, detected])
         
-        # Ìí¼Ó·Ö¸îÏß
+        # æ·»åŠ åˆ†å‰²çº¿
         line_x = w1
         cv2.line(comparison, (line_x, 0), (line_x, h1), (255, 255, 255), 2)
         
-        # Ìí¼Ó±êÌâ
+        # æ·»åŠ æ ‡é¢˜
         cv2.putText(comparison, "Original", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
                    1.0, (255, 255, 255), 2)
         cv2.putText(comparison, "Detected", (w1 + 10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
@@ -189,21 +189,21 @@ class VideoVisualizer:
     def save_pose_visualization(self, frames: List[np.ndarray], results: List[Dict], 
                                video_name: str) -> List[str]:
         """
-        ±£´æ×ËÌ¬¿ÉÊÓ»¯½á¹û
+        ä¿å­˜å§¿æ€å¯è§†åŒ–ç»“æœ
         
         Args:
-            frames: ÊÓÆµÖ¡ÁĞ±í
-            results: ¼ì²â½á¹ûÁĞ±í
-            video_name: ÊÓÆµÃû³Æ
+            frames: è§†é¢‘å¸§åˆ—è¡¨
+            results: æ£€æµ‹ç»“æœåˆ—è¡¨
+            video_name: è§†é¢‘åç§°
             
         Returns:
-            ±£´æµÄÍ¼ÏñÎÄ¼şÂ·¾¶ÁĞ±í
+            ä¿å­˜çš„å›¾åƒæ–‡ä»¶è·¯å¾„åˆ—è¡¨
         """
         saved_paths = []
         
         for i, (frame, result) in enumerate(zip(frames, results)):
             if result.get('pose_detected', False):
-                # »æÖÆ×ËÌ¬¹Ç¼Ü
+                # ç»˜åˆ¶å§¿æ€éª¨æ¶
                 keypoints = result.get('keypoints', np.array([]))
                 confidence = result.get('confidence', 0.0)
                 anomalies = result.get('anomalies', [])
@@ -211,7 +211,7 @@ class VideoVisualizer:
                 if len(keypoints) > 0:
                     vis_frame = self.draw_pose_skeleton(frame, keypoints, confidence, anomalies)
                     
-                    # ±£´æÍ¼Ïñ
+                    # ä¿å­˜å›¾åƒ
                     filename = f"{video_name}_pose_frame_{i:03d}.jpg"
                     filepath = os.path.join(self.viz_dir, filename)
                     cv2.imwrite(filepath, vis_frame)
@@ -222,33 +222,33 @@ class VideoVisualizer:
     def save_anomaly_visualization(self, frames: List[np.ndarray], results: List[Dict], 
                                  video_name: str) -> List[str]:
         """
-        ±£´æÒì³£¼ì²â¿ÉÊÓ»¯½á¹û
+        ä¿å­˜å¼‚å¸¸æ£€æµ‹å¯è§†åŒ–ç»“æœ
         
         Args:
-            frames: ÊÓÆµÖ¡ÁĞ±í
-            results: ¼ì²â½á¹ûÁĞ±í
-            video_name: ÊÓÆµÃû³Æ
+            frames: è§†é¢‘å¸§åˆ—è¡¨
+            results: æ£€æµ‹ç»“æœåˆ—è¡¨
+            video_name: è§†é¢‘åç§°
             
         Returns:
-            ±£´æµÄÍ¼ÏñÎÄ¼şÂ·¾¶ÁĞ±í
+            ä¿å­˜çš„å›¾åƒæ–‡ä»¶è·¯å¾„åˆ—è¡¨
         """
         saved_paths = []
         
         for i, (frame, result) in enumerate(zip(frames, results)):
             if result.get('anomaly_count', 0) > 0:
-                # ¸ßÁÁÒì³£ÇøÓò
+                # é«˜äº®å¼‚å¸¸åŒºåŸŸ
                 vis_frame = frame.copy()
                 
-                # ÔÚÒì³£ÇøÓò»æÖÆºìÉ«±ß¿ò
+                # åœ¨å¼‚å¸¸åŒºåŸŸç»˜åˆ¶çº¢è‰²è¾¹æ¡†
                 h, w = frame.shape[:2]
                 cv2.rectangle(vis_frame, (0, 0), (w, h), self.anomaly_color, 5)
                 
-                # Ìí¼ÓÒì³£ĞÅÏ¢ÎÄ±¾
+                # æ·»åŠ å¼‚å¸¸ä¿¡æ¯æ–‡æœ¬
                 anomaly_text = f"Anomalies: {result.get('anomaly_count', 0)}"
                 cv2.putText(vis_frame, anomaly_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
                            1.0, self.anomaly_color, 2)
                 
-                # ±£´æÍ¼Ïñ
+                # ä¿å­˜å›¾åƒ
                 filename = f"{video_name}_anomaly_frame_{i:03d}.jpg"
                 filepath = os.path.join(self.viz_dir, filename)
                 cv2.imwrite(filepath, vis_frame)
@@ -258,23 +258,23 @@ class VideoVisualizer:
     
     def create_statistics_charts(self, results: List[Dict], video_name: str) -> List[str]:
         """
-        ´´½¨Í³¼ÆÍ¼±í
+        åˆ›å»ºç»Ÿè®¡å›¾è¡¨
         
         Args:
-            results: ËùÓĞÊÓÆµµÄÆÀ¹À½á¹û
-            video_name: ÊÓÆµÃû³Æ
+            results: æ‰€æœ‰è§†é¢‘çš„è¯„ä¼°ç»“æœ
+            video_name: è§†é¢‘åç§°
             
         Returns:
-            ±£´æµÄÍ¼±íÎÄ¼şÂ·¾¶ÁĞ±í
+            ä¿å­˜çš„å›¾è¡¨æ–‡ä»¶è·¯å¾„åˆ—è¡¨
         """
         if not MATPLOTLIB_AVAILABLE:
-            print("¾¯¸æ: matplotlib²»¿ÉÓÃ£¬Ìø¹ıÍ³¼ÆÍ¼±íÉú³É")
+            print("è­¦å‘Š: matplotlibä¸å¯ç”¨ï¼Œè·³è¿‡ç»Ÿè®¡å›¾è¡¨ç”Ÿæˆ")
             return []
         
         saved_paths = []
         
         try:
-            # ÌáÈ¡Êı¾İ
+            # æå–æ•°æ®
             detection_rates = []
             confidences = []
             anomaly_counts = []
@@ -289,32 +289,32 @@ class VideoVisualizer:
                 anomaly_counts.append(pose_quality.get('avg_anomalies', 0))
                 overall_scores.append(overall.get('overall_score', 0))
             
-            # ´´½¨×ÓÍ¼
+            # åˆ›å»ºå­å›¾
             fig, axes = plt.subplots(2, 2, figsize=(15, 12))
             fig.suptitle(f'Video Quality Analysis: {video_name}', fontsize=16)
             
-            # 1. ¼ì²âÂÊ·Ö²¼
+            # 1. æ£€æµ‹ç‡åˆ†å¸ƒ
             axes[0, 0].hist(detection_rates, bins=10, alpha=0.7, color='skyblue', edgecolor='black')
             axes[0, 0].set_title('Detection Rate Distribution')
             axes[0, 0].set_xlabel('Detection Rate')
             axes[0, 0].set_ylabel('Frequency')
             axes[0, 0].grid(True, alpha=0.3)
             
-            # 2. ÖÃĞÅ¶È·Ö²¼
+            # 2. ç½®ä¿¡åº¦åˆ†å¸ƒ
             axes[0, 1].hist(confidences, bins=10, alpha=0.7, color='lightgreen', edgecolor='black')
             axes[0, 1].set_title('Confidence Distribution')
             axes[0, 1].set_xlabel('Average Confidence')
             axes[0, 1].set_ylabel('Frequency')
             axes[0, 1].grid(True, alpha=0.3)
             
-            # 3. Òì³£ÊıÁ¿·Ö²¼
+            # 3. å¼‚å¸¸æ•°é‡åˆ†å¸ƒ
             axes[1, 0].hist(anomaly_counts, bins=10, alpha=0.7, color='lightcoral', edgecolor='black')
             axes[1, 0].set_title('Anomaly Count Distribution')
             axes[1, 0].set_xlabel('Average Anomalies')
             axes[1, 0].set_ylabel('Frequency')
             axes[1, 0].grid(True, alpha=0.3)
             
-            # 4. ×ÛºÏÆÀ·ÖÇ÷ÊÆ
+            # 4. ç»¼åˆè¯„åˆ†è¶‹åŠ¿
             axes[1, 1].plot(overall_scores, marker='o', linewidth=2, markersize=6)
             axes[1, 1].set_title('Overall Score Trend')
             axes[1, 1].set_xlabel('Frame Index')
@@ -323,41 +323,41 @@ class VideoVisualizer:
             
             plt.tight_layout()
             
-            # ±£´æÍ¼±í
+            # ä¿å­˜å›¾è¡¨
             chart_path = os.path.join(self.viz_dir, f"{video_name}_statistics.png")
             plt.savefig(chart_path, dpi=300, bbox_inches='tight')
             plt.close()
             saved_paths.append(chart_path)
             
         except Exception as e:
-            print(f"´´½¨Í³¼ÆÍ¼±íÊ±³ö´í: {e}")
+            print(f"åˆ›å»ºç»Ÿè®¡å›¾è¡¨æ—¶å‡ºé”™: {e}")
         
         return saved_paths
     
     def create_interactive_dashboard(self, results: List[Dict], video_name: str) -> str:
         """
-        ´´½¨½»»¥Ê½ÒÇ±í°å
+        åˆ›å»ºäº¤äº’å¼ä»ªè¡¨æ¿
         
         Args:
-            results: ËùÓĞÊÓÆµµÄÆÀ¹À½á¹û
-            video_name: ÊÓÆµÃû³Æ
+            results: æ‰€æœ‰è§†é¢‘çš„è¯„ä¼°ç»“æœ
+            video_name: è§†é¢‘åç§°
             
         Returns:
-            ±£´æµÄHTMLÎÄ¼şÂ·¾¶
+            ä¿å­˜çš„HTMLæ–‡ä»¶è·¯å¾„
         """
         if not PLOTLY_AVAILABLE:
-            print("¾¯¸æ: plotly²»¿ÉÓÃ£¬Ìø¹ı½»»¥Ê½ÒÇ±í°åÉú³É")
+            print("è­¦å‘Š: plotlyä¸å¯ç”¨ï¼Œè·³è¿‡äº¤äº’å¼ä»ªè¡¨æ¿ç”Ÿæˆ")
             return ""
         
         try:
-            # ÌáÈ¡Êı¾İ
+            # æå–æ•°æ®
             frames = list(range(len(results)))
             detection_rates = [r.get('pose_quality', {}).get('detection_rate', 0) for r in results]
             confidences = [r.get('pose_quality', {}).get('avg_confidence', 0) for r in results]
             anomaly_counts = [r.get('pose_quality', {}).get('avg_anomalies', 0) for r in results]
             overall_scores = [r.get('overall_assessment', {}).get('overall_score', 0) for r in results]
             
-            # ´´½¨×ÓÍ¼
+            # åˆ›å»ºå­å›¾
             fig = make_subplots(
                 rows=2, cols=2,
                 subplot_titles=('Detection Rate', 'Confidence', 'Anomaly Count', 'Overall Score'),
@@ -365,7 +365,7 @@ class VideoVisualizer:
                        [{"secondary_y": False}, {"secondary_y": False}]]
             )
             
-            # Ìí¼Ó¹ì¼£
+            # æ·»åŠ è½¨è¿¹
             fig.add_trace(
                 go.Scatter(x=frames, y=detection_rates, mode='lines+markers', name='Detection Rate'),
                 row=1, col=1
@@ -386,35 +386,35 @@ class VideoVisualizer:
                 row=2, col=2
             )
             
-            # ¸üĞÂ²¼¾Ö
+            # æ›´æ–°å¸ƒå±€
             fig.update_layout(
                 title=f'Interactive Dashboard: {video_name}',
                 height=800,
                 showlegend=True
             )
             
-            # ±£´æHTMLÎÄ¼ş
+            # ä¿å­˜HTMLæ–‡ä»¶
             dashboard_path = os.path.join(self.viz_dir, f"{video_name}_dashboard.html")
             fig.write_html(dashboard_path)
             
             return dashboard_path
             
         except Exception as e:
-            print(f"´´½¨½»»¥Ê½ÒÇ±í°åÊ±³ö´í: {e}")
+            print(f"åˆ›å»ºäº¤äº’å¼ä»ªè¡¨æ¿æ—¶å‡ºé”™: {e}")
             return ""
     
     def visualize_video_results(self, video_path: str, frames: List[np.ndarray], 
                               results: Dict) -> Dict[str, List[str]]:
         """
-        Îªµ¥¸öÊÓÆµ´´½¨ÍêÕûµÄ¿ÉÊÓ»¯½á¹û
+        ä¸ºå•ä¸ªè§†é¢‘åˆ›å»ºå®Œæ•´çš„å¯è§†åŒ–ç»“æœ
         
         Args:
-            video_path: ÊÓÆµÎÄ¼şÂ·¾¶
-            frames: ÊÓÆµÖ¡ÁĞ±í
-            results: ÆÀ¹À½á¹û
+            video_path: è§†é¢‘æ–‡ä»¶è·¯å¾„
+            frames: è§†é¢‘å¸§åˆ—è¡¨
+            results: è¯„ä¼°ç»“æœ
             
         Returns:
-            ±£´æµÄÎÄ¼şÂ·¾¶×Öµä
+            ä¿å­˜çš„æ–‡ä»¶è·¯å¾„å­—å…¸
         """
         video_name = Path(video_path).stem
         saved_files = {
@@ -425,21 +425,21 @@ class VideoVisualizer:
             'dashboard': []
         }
         
-        # ¼ì²éÊÇ·ñÆôÓÃ¿ÉÊÓ»¯
+        # æ£€æŸ¥æ˜¯å¦å¯ç”¨å¯è§†åŒ–
         if not self.viz_config.get('enable_visualization', False):
             return saved_files
         
-        # ×ËÌ¬¿ÉÊÓ»¯
+        # å§¿æ€å¯è§†åŒ–
         if self.viz_config.get('save_pose_images', False):
             frame_results = results.get('pose_quality', {}).get('frame_results', [])
             saved_files['pose_images'] = self.save_pose_visualization(frames, frame_results, video_name)
         
-        # Òì³£¿ÉÊÓ»¯
+        # å¼‚å¸¸å¯è§†åŒ–
         if self.viz_config.get('save_anomaly_images', False):
             frame_results = results.get('pose_quality', {}).get('frame_results', [])
             saved_files['anomaly_images'] = self.save_anomaly_visualization(frames, frame_results, video_name)
         
-        # ¶Ô±ÈÍ¼Ïñ
+        # å¯¹æ¯”å›¾åƒ
         if self.viz_config.get('save_comparison_images', False):
             frame_results = results.get('pose_quality', {}).get('frame_results', [])
             for i, (frame, result) in enumerate(zip(frames, frame_results)):
@@ -455,12 +455,12 @@ class VideoVisualizer:
                         cv2.imwrite(filepath, comparison)
                         saved_files['comparison_images'].append(filepath)
         
-        # Í³¼ÆÍ¼±í
+        # ç»Ÿè®¡å›¾è¡¨
         if self.viz_config.get('save_statistics_charts', False):
             frame_results = results.get('pose_quality', {}).get('frame_results', [])
             saved_files['statistics_charts'] = self.create_statistics_charts(frame_results, video_name)
         
-        # ½»»¥Ê½ÒÇ±í°å
+        # äº¤äº’å¼ä»ªè¡¨æ¿
         if self.viz_config.get('save_statistics_charts', False):
             frame_results = results.get('pose_quality', {}).get('frame_results', [])
             dashboard_path = self.create_interactive_dashboard(frame_results, video_name)
