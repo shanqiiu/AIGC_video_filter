@@ -1,44 +1,19 @@
-# AIGCè§†é¢‘è´¨é‡ç­›é€‰é…ç½®æ–‡ä»¶
+# AIGCÊÓÆµÖÊÁ¿É¸Ñ¡ÅäÖÃÎÄ¼ş£¨½öÊ¹ÓÃYOLO£©
 
-# è´¨é‡é˜ˆå€¼è®¾ç½®
+# ÖÊÁ¿ãĞÖµÉèÖÃ
 quality_thresholds:
-  # å›¾åƒè´¨é‡æŒ‡æ ‡
-  blur_threshold: 100.0          # æ¨¡ç³Šåº¦é˜ˆå€¼ï¼ˆè¶Šé«˜è¶Šæ¸…æ™°ï¼‰
-  noise_threshold: 30.0          # å™ªå£°é˜ˆå€¼ï¼ˆè¶Šä½è¶Šå¥½ï¼‰
-  contrast_threshold: 30.0       # å¯¹æ¯”åº¦é˜ˆå€¼
-  sharpness_threshold: 50.0      # é”åº¦é˜ˆå€¼
-  
-  # äººä½“å§¿æ€æŒ‡æ ‡
-  pose_confidence_threshold: 0.5  # å§¿æ€æ£€æµ‹ç½®ä¿¡åº¦
-  joint_angle_threshold: 30.0     # å…³èŠ‚è§’åº¦å¼‚å¸¸é˜ˆå€¼ï¼ˆåº¦ï¼‰
-  body_ratio_threshold: 0.3       # èº«ä½“æ¯”ä¾‹å¼‚å¸¸é˜ˆå€¼
-  
-  # æ—¶åºä¸€è‡´æ€§æŒ‡æ ‡
-  temporal_consistency_threshold: 0.85  # æ—¶åºä¸€è‡´æ€§é˜ˆå€¼
-  motion_smoothness_threshold: 0.7      # è¿åŠ¨å¹³æ»‘åº¦é˜ˆå€¼
-  
-  # ç»¼åˆè¯„åˆ†
-  overall_pass_score: 0.6        # æ€»ä½“é€šè¿‡åˆ†æ•°ï¼ˆ0-1ï¼‰
+  # ÈËÌå×ËÌ¬Ö¸±ê
+  pose_confidence_threshold: 0.5  # ×ËÌ¬¼ì²âÖÃĞÅ¶È
+  overall_pass_score: 0.6        # ×ÜÌåÍ¨¹ı·ÖÊı£¨0-1£©
 
-# æ£€æµ‹æ¨¡å—å¼€å…³
-detection_modules:
-  enable_blur_detection: true
-  enable_noise_detection: true
-  enable_distortion_detection: true
-  enable_pose_detection: true
-  enable_temporal_consistency: true
-  enable_aesthetic_scoring: false  # å¯é€‰ï¼šéœ€è¦é¢å¤–æ¨¡å‹
-
-# è§†é¢‘å¤„ç†å‚æ•°
+# ÊÓÆµ´¦Àí²ÎÊı
 video_processing:
-  sample_fps: 10                  # é‡‡æ ·å¸§ç‡ï¼ˆä»è§†é¢‘ä¸­æå–å¸§çš„é¢‘ç‡ï¼‰
-  max_frames: 30                  # æœ€å¤§å¤„ç†å¸§æ•°ï¼ˆçº¦3ç§’ï¼‰
-  resize_height: 720              # å¤„ç†æ—¶çš„è§†é¢‘é«˜åº¦
-  resize_width: 1280              # å¤„ç†æ—¶çš„è§†é¢‘å®½åº¦
+  sample_fps: 10                  # ²ÉÑùÖ¡ÂÊ£¨´ÓÊÓÆµÖĞÌáÈ¡Ö¡µÄÆµÂÊ£©
+  max_frames: 30                  # ×î´ó´¦ÀíÖ¡Êı£¨Ô¼3Ãë£©
+  resize_height: 720              # ´¦ÀíÊ±µÄÊÓÆµ¸ß¶È
+  resize_width: 1280              # ´¦ÀíÊ±µÄÊÓÆµ¿í¶È
 
-# è¾“å‡ºè®¾ç½®
+# Êä³öÉèÖÃ
 output:
-  save_report: true               # ä¿å­˜è¯¦ç»†æŠ¥å‘Š
-  save_visualization: true        # ä¿å­˜å¯è§†åŒ–ç»“æœ
-  output_dir: "./results"         # è¾“å‡ºç›®å½•
-
+  save_report: true               # ±£´æÏêÏ¸±¨¸æ
+  output_dir: "./results"         # Êä³öÄ¿Â¼

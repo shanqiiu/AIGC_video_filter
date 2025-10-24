@@ -1,13 +1,9 @@
 """
-æ£€æµ‹å™¨æ¨¡å—åˆå§‹åŒ–
+¼ì²âÆ÷Ä£¿é³õÊ¼»¯
+½öÊ¹ÓÃYOLO½øĞĞÈËÌå×ËÌ¬¼ì²â
 """
 
-from .image_quality_detector import ImageQualityDetector
-from .pose_anomaly_detector import PoseAnomalyDetector
-from .temporal_consistency_detector import TemporalConsistencyDetector
-from .object_interaction_detector import ObjectInteractionDetector
-
-# å¯é€‰ï¼šYOLOå¢å¼ºç‰ˆæœ¬ï¼ˆéœ€è¦å®‰è£…ultralyticsï¼‰
+# YOLO¼ì²âÆ÷
 try:
     from .pose_anomaly_detector_yolo import PoseAnomalyDetectorYOLO, get_pose_detector
     YOLO_AVAILABLE = True
@@ -16,12 +12,7 @@ except ImportError:
     get_pose_detector = None
 
 __all__ = [
-    'ImageQualityDetector',
-    'PoseAnomalyDetector',
-    'TemporalConsistencyDetector',
-    'ObjectInteractionDetector',
     'PoseAnomalyDetectorYOLO',
     'get_pose_detector',
     'YOLO_AVAILABLE'
 ]
-

@@ -1,6 +1,6 @@
 """
-AIGCè§†é¢‘è´¨é‡ç­›é€‰ä¸»æ¨¡å—
-æ•´åˆæ‰€æœ‰æ£€æµ‹å™¨ï¼Œæä¾›ç»Ÿä¸€çš„è§†é¢‘è´¨é‡è¯„ä¼°æ¥å£
+AIGCÊÓÆµÖÊÁ¿É¸Ñ¡Ö÷Ä£¿é
+½öÊ¹ÓÃYOLO½øĞĞÈËÌå×ËÌ¬¼ì²â
 """
 
 import cv2
@@ -8,58 +8,53 @@ import numpy as np
 import yaml
 import json
 import os
+import sys
+import argparse
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from tqdm import tqdm
 
-from detectors import ImageQualityDetector, PoseAnomalyDetector, TemporalConsistencyDetector
+from detectors import PoseAnomalyDetectorYOLO, YOLO_AVAILABLE
 
 
 class VideoQualityFilter:
-    """AIGCè§†é¢‘è´¨é‡ç­›é€‰å™¨"""
+    """AIGCÊÓÆµÖÊÁ¿É¸Ñ¡Æ÷£¨½öÊ¹ÓÃYOLO£©"""
     
     def __init__(self, config_path: str = "config.yaml"):
         """
-        åˆå§‹åŒ–è§†é¢‘è´¨é‡ç­›é€‰å™¨
+        ³õÊ¼»¯ÊÓÆµÖÊÁ¿É¸Ñ¡Æ÷
         
         Args:
-            config_path: é…ç½®æ–‡ä»¶è·¯å¾„
+            config_path: ÅäÖÃÎÄ¼şÂ·¾¶
         """
         self.config = self._load_config(config_path)
         
-        # åˆå§‹åŒ–å„ä¸ªæ£€æµ‹å™¨
-        self.image_quality_detector = ImageQualityDetector(self.config)
-        self.pose_detector = PoseAnomalyDetector(self.config)
-        self.temporal_detector = TemporalConsistencyDetector(self.config)
+        # ³õÊ¼»¯YOLO¼ì²âÆ÷
+        if not YOLO_AVAILABLE:
+            raise ImportError("ĞèÒª°²×°ultralytics: pip install ultralytics")
         
-        # åˆ›å»ºè¾“å‡ºç›®å½•
+        self.pose_detector = PoseAnomalyDetectorYOLO(self.config)
+        
+        # ´´½¨Êä³öÄ¿Â¼
         output_dir = self.config.get('output', {}).get('output_dir', './results')
         os.makedirs(output_dir, exist_ok=True)
         self.output_dir = output_dir
     
     def _load_config(self, config_path: str) -> dict:
-        """åŠ è½½é…ç½®æ–‡ä»¶"""
+        """¼ÓÔØÅäÖÃÎÄ¼ş"""
         if os.path.exists(config_path):
             with open(config_path, 'r', encoding='utf-8') as f:
                 return yaml.safe_load(f)
         else:
-            print(f"é…ç½®æ–‡ä»¶ {config_path} ä¸å­˜åœ¨ï¼Œä½¿ç”¨é»˜è®¤é…ç½®")
+            print(f"ÅäÖÃÎÄ¼ş {config_path} ²»´æÔÚ£¬Ê¹ÓÃÄ¬ÈÏÅäÖÃ")
             return self._get_default_config()
     
     def _get_default_config(self) -> dict:
-        """è·å–é»˜è®¤é…ç½®"""
+        """»ñÈ¡Ä¬ÈÏÅäÖÃ"""
         return {
             'quality_thresholds': {
-                'blur_threshold': 100.0,
-                'noise_threshold': 30.0,
-                'contrast_threshold': 30.0,
+                'pose_confidence_threshold': 0.5,
                 'overall_pass_score': 0.6
-            },
-            'detection_modules': {
-                'enable_blur_detection': True,
-                'enable_noise_detection': True,
-                'enable_pose_detection': True,
-                'enable_temporal_consistency': True
             },
             'video_processing': {
                 'sample_fps': 10,
@@ -69,27 +64,26 @@ class VideoQualityFilter:
             },
             'output': {
                 'save_report': True,
-                'save_visualization': False,
                 'output_dir': './results'
             }
         }
     
     def extract_frames(self, video_path: str) -> Tuple[List[np.ndarray], Dict]:
         """
-        ä»è§†é¢‘ä¸­æå–å¸§
+        ´ÓÊÓÆµÖĞÌáÈ¡Ö¡
         
         Args:
-            video_path: è§†é¢‘æ–‡ä»¶è·¯å¾„
+            video_path: ÊÓÆµÎÄ¼şÂ·¾¶
             
         Returns:
-            (å¸§åˆ—è¡¨, è§†é¢‘ä¿¡æ¯)
+            Ö¡ÁĞ±íºÍÊÓÆµĞÅÏ¢
         """
         cap = cv2.VideoCapture(video_path)
         
         if not cap.isOpened():
-            raise ValueError(f"æ— æ³•æ‰“å¼€è§†é¢‘æ–‡ä»¶: {video_path}")
+            raise ValueError(f"ÎŞ·¨´ò¿ªÊÓÆµÎÄ¼ş: {video_path}")
         
-        # è·å–è§†é¢‘ä¿¡æ¯
+        # »ñÈ¡ÊÓÆµĞÅÏ¢
         fps = cap.get(cv2.CAP_PROP_FPS)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -104,190 +98,120 @@ class VideoQualityFilter:
             'duration': duration
         }
         
-        # è®¡ç®—é‡‡æ ·é—´éš”
-        sample_fps = self.config['video_processing']['sample_fps']
-        frame_interval = max(1, int(fps / sample_fps)) if fps > 0 else 1
-        max_frames = self.config['video_processing']['max_frames']
+        # ¼ÆËã²ÉÑù¼ä¸ô
+        sample_fps = self.config.get('video_processing', {}).get('sample_fps', 10)
+        max_frames = self.config.get('video_processing', {}).get('max_frames', 30)
+        
+        if fps > 0:
+            frame_interval = max(1, int(fps / sample_fps))
+        else:
+            frame_interval = 1
         
         frames = []
-        frame_idx = 0
+        frame_count = 0
+        extracted_count = 0
         
-        while True:
+        while cap.isOpened() and extracted_count < max_frames:
             ret, frame = cap.read()
             if not ret:
                 break
             
-            # æŒ‰é—´éš”é‡‡æ ·
-            if frame_idx % frame_interval == 0:
-                # è°ƒæ•´å¤§å°ï¼ˆå¯é€‰ï¼‰
-                target_height = self.config['video_processing'].get('resize_height')
-                target_width = self.config['video_processing'].get('resize_width')
+            if frame_count % frame_interval == 0:
+                # µ÷ÕûÍ¼Ïñ´óĞ¡
+                resize_height = self.config.get('video_processing', {}).get('resize_height', 720)
+                resize_width = self.config.get('video_processing', {}).get('resize_width', 1280)
                 
-                if target_height and target_width:
-                    frame = cv2.resize(frame, (target_width, target_height))
+                if resize_height > 0 and resize_width > 0:
+                    frame = cv2.resize(frame, (resize_width, resize_height))
                 
                 frames.append(frame)
-                
-                # é™åˆ¶æœ€å¤§å¸§æ•°
-                if len(frames) >= max_frames:
-                    break
+                extracted_count += 1
             
-            frame_idx += 1
+            frame_count += 1
         
         cap.release()
-        
         return frames, video_info
-    
-    def evaluate_image_quality(self, frames: List[np.ndarray]) -> Dict:
-        """
-        è¯„ä¼°å›¾åƒè´¨é‡ï¼ˆå¯¹å¤šå¸§å–å¹³å‡ï¼‰
-        
-        Args:
-            frames: è§†é¢‘å¸§åˆ—è¡¨
-            
-        Returns:
-            å›¾åƒè´¨é‡è¯„ä¼°ç»“æœ
-        """
-        if not self.config['detection_modules']['enable_blur_detection']:
-            return {'skipped': True}
-        
-        # å¯¹éƒ¨åˆ†å¸§è¿›è¡Œè¯„ä¼°ï¼ˆé¿å…è®¡ç®—é‡è¿‡å¤§ï¼‰
-        sample_indices = np.linspace(0, len(frames) - 1, min(10, len(frames)), dtype=int)
-        
-        all_results = []
-        for idx in sample_indices:
-            result = self.image_quality_detector.evaluate(frames[idx])
-            all_results.append(result)
-        
-        # è®¡ç®—å¹³å‡å€¼
-        avg_result = {
-            'blur_score': np.mean([r['blur_score'] for r in all_results]),
-            'noise_level': np.mean([r['noise_level'] for r in all_results]),
-            'sharpness': np.mean([r['sharpness'] for r in all_results]),
-            'contrast': np.mean([r['contrast'] for r in all_results]),
-            'quality_score': np.mean([r['quality_score'] for r in all_results]),
-            'sampled_frames': len(sample_indices)
-        }
-        
-        # åˆ¤æ–­æ˜¯å¦é€šè¿‡
-        thresholds = self.config['quality_thresholds']
-        avg_result['passed'] = (
-            avg_result['blur_score'] >= thresholds.get('blur_threshold', 100.0) and
-            avg_result['noise_level'] <= thresholds.get('noise_threshold', 30.0)
-        )
-        
-        return avg_result
     
     def evaluate_pose_quality(self, frames: List[np.ndarray]) -> Dict:
         """
-        è¯„ä¼°äººä½“å§¿æ€è´¨é‡
+        ÆÀ¹ÀÈËÌå×ËÌ¬ÖÊÁ¿
         
         Args:
-            frames: è§†é¢‘å¸§åˆ—è¡¨
+            frames: ÊÓÆµÖ¡ÁĞ±í
             
         Returns:
-            å§¿æ€è´¨é‡è¯„ä¼°ç»“æœ
+            ×ËÌ¬ÖÊÁ¿ÆÀ¹À½á¹û
         """
-        if not self.config['detection_modules']['enable_pose_detection']:
-            return {'skipped': True}
+        if not frames:
+            return {
+                'pose_detected': False,
+                'message': 'Ã»ÓĞ¿É´¦ÀíµÄÖ¡',
+                'passed': False
+            }
         
-        # å¯¹éƒ¨åˆ†å¸§è¿›è¡Œè¯„ä¼°
-        sample_indices = np.linspace(0, len(frames) - 1, min(10, len(frames)), dtype=int)
+        # ¶ÔÃ¿Ò»Ö¡½øĞĞ×ËÌ¬¼ì²â
+        frame_results = []
+        total_anomalies = 0
+        total_confidence = 0
+        detected_frames = 0
         
-        all_results = []
-        frames_with_person = 0
-        frames_with_anomaly = 0
-        
-        for idx in sample_indices:
-            result = self.pose_detector.evaluate(frames[idx])
-            all_results.append(result)
+        for frame in frames:
+            result = self.pose_detector.evaluate(frame)
+            frame_results.append(result)
             
-            if result.get('has_person', False):
-                frames_with_person += 1
-                if result.get('anomaly_count', 0) > 0:
-                    frames_with_anomaly += 1
+            if result['pose_detected']:
+                detected_frames += 1
+                total_anomalies += result['anomaly_count']
+                total_confidence += result['avg_confidence']
         
-        # æ±‡æ€»ç»“æœ
-        summary = {
-            'sampled_frames': len(sample_indices),
-            'frames_with_person': frames_with_person,
-            'frames_with_anomaly': frames_with_anomaly,
-            'person_detection_rate': frames_with_person / len(sample_indices) if sample_indices.size > 0 else 0,
-            'anomaly_rate': frames_with_anomaly / frames_with_person if frames_with_person > 0 else 0
+        # ¼ÆËãÍ³¼ÆĞÅÏ¢
+        detection_rate = detected_frames / len(frames) if frames else 0
+        avg_anomalies = total_anomalies / detected_frames if detected_frames > 0 else 0
+        avg_confidence = total_confidence / detected_frames if detected_frames > 0 else 0
+        
+        # ÅĞ¶ÏÊÇ·ñÍ¨¹ı
+        confidence_threshold = self.config.get('quality_thresholds', {}).get('pose_confidence_threshold', 0.5)
+        passed = detection_rate > 0.5 and avg_confidence > confidence_threshold and avg_anomalies < 2
+        
+        return {
+            'pose_detected': detected_frames > 0,
+            'detection_rate': detection_rate,
+            'avg_anomalies': avg_anomalies,
+            'avg_confidence': avg_confidence,
+            'detected_frames': detected_frames,
+            'total_frames': len(frames),
+            'passed': passed,
+            'frame_results': frame_results
         }
-        
-        # å¦‚æœæ£€æµ‹åˆ°äººç‰©
-        if frames_with_person > 0:
-            # æ”¶é›†æ‰€æœ‰å¼‚å¸¸
-            all_anomalies = []
-            for result in all_results:
-                if result.get('has_person', False):
-                    all_anomalies.extend(result.get('all_anomalies', []))
-            
-            # è®¡ç®—å¹³å‡å§¿æ€è´¨é‡åˆ†æ•°
-            pose_scores = [r.get('pose_quality_score', 1.0) for r in all_results if r.get('has_person', False)]
-            avg_pose_score = np.mean(pose_scores) if pose_scores else 0.0
-            
-            summary['all_detected_anomalies'] = all_anomalies
-            summary['unique_anomaly_types'] = len(set(all_anomalies))
-            summary['avg_pose_quality_score'] = float(avg_pose_score)
-            summary['passed'] = summary['anomaly_rate'] < 0.3  # 30%ä»¥ä¸‹çš„å¸§æœ‰å¼‚å¸¸åˆ™é€šè¿‡
-        else:
-            # æ²¡æœ‰æ£€æµ‹åˆ°äººç‰©ï¼Œè§†ä¸ºé€šè¿‡ï¼ˆå¯èƒ½æ˜¯éäººç‰©è§†é¢‘ï¼‰
-            summary['passed'] = True
-            summary['note'] = 'æœªæ£€æµ‹åˆ°äººç‰©ï¼Œè·³è¿‡å§¿æ€æ£€æŸ¥'
-        
-        return summary
-    
-    def evaluate_temporal_consistency(self, frames: List[np.ndarray]) -> Dict:
-        """
-        è¯„ä¼°æ—¶åºä¸€è‡´æ€§
-        
-        Args:
-            frames: è§†é¢‘å¸§åˆ—è¡¨
-            
-        Returns:
-            æ—¶åºä¸€è‡´æ€§è¯„ä¼°ç»“æœ
-        """
-        if not self.config['detection_modules']['enable_temporal_consistency']:
-            return {'skipped': True}
-        
-        result = self.temporal_detector.evaluate(frames)
-        
-        # æ·»åŠ é€šè¿‡åˆ¤æ–­
-        threshold = self.config['quality_thresholds'].get('temporal_consistency_threshold', 0.7)
-        result['passed'] = result.get('temporal_consistency_score', 0) >= threshold
-        
-        return result
     
     def evaluate_video(self, video_path: str, verbose: bool = True) -> Dict:
         """
-        è¯„ä¼°å•ä¸ªè§†é¢‘çš„è´¨é‡
+        ÆÀ¹Àµ¥¸öÊÓÆµµÄÖÊÁ¿
         
         Args:
-            video_path: è§†é¢‘æ–‡ä»¶è·¯å¾„
-            verbose: æ˜¯å¦æ‰“å°è¯¦ç»†ä¿¡æ¯
+            video_path: ÊÓÆµÎÄ¼şÂ·¾¶
+            verbose: ÊÇ·ñ´òÓ¡ÏêÏ¸ĞÅÏ¢
             
         Returns:
-            å®Œæ•´çš„è§†é¢‘è´¨é‡è¯„ä¼°ç»“æœ
+            ÍêÕûµÄÊÓÆµÖÊÁ¿ÆÀ¹À½á¹û
         """
         if verbose:
-            print(f"\næ­£åœ¨è¯„ä¼°è§†é¢‘: {video_path}")
+            print(f"\nÕıÔÚÆÀ¹ÀÊÓÆµ: {video_path}")
         
-        # æå–å¸§
+        # ÌáÈ¡Ö¡
         try:
             frames, video_info = self.extract_frames(video_path)
         except Exception as e:
             return {
                 'video_path': video_path,
-                'error': f"æå–å¸§å¤±è´¥: {str(e)}",
+                'error': f"ÌáÈ¡Ö¡Ê§°Ü: {str(e)}",
                 'passed': False
             }
         
         if verbose:
-            print(f"æå–äº† {len(frames)} å¸§ï¼Œè§†é¢‘ä¿¡æ¯: {video_info}")
+            print(f"ÌáÈ¡ÁË {len(frames)} Ö¡£¬ÊÓÆµĞÅÏ¢: {video_info}")
         
-        # å„é¡¹è¯„ä¼°
+        # ×ËÌ¬ÆÀ¹À
         results = {
             'video_path': video_path,
             'video_info': video_info,
@@ -295,188 +219,121 @@ class VideoQualityFilter:
         }
         
         if verbose:
-            print("1/3 è¯„ä¼°å›¾åƒè´¨é‡...")
-        results['image_quality'] = self.evaluate_image_quality(frames)
-        
-        if verbose:
-            print("2/3 è¯„ä¼°äººä½“å§¿æ€...")
+            print("ÆÀ¹ÀÈËÌå×ËÌ¬...")
         results['pose_quality'] = self.evaluate_pose_quality(frames)
         
-        if verbose:
-            print("3/3 è¯„ä¼°æ—¶åºä¸€è‡´æ€§...")
-        results['temporal_consistency'] = self.evaluate_temporal_consistency(frames)
-        
-        # è®¡ç®—ç»¼åˆè¯„åˆ†
+        # ¼ÆËã×ÛºÏÆÀ·Ö
         results['overall_assessment'] = self._calculate_overall_score(results)
         
         if verbose:
-            print(f"\nç»¼åˆè¯„ä¼°ç»“æœ:")
-            print(f"  - å›¾åƒè´¨é‡åˆ†æ•°: {results['image_quality'].get('quality_score', 0):.3f}")
-            print(f"  - å§¿æ€è´¨é‡: {'é€šè¿‡' if results['pose_quality'].get('passed', False) else 'æœªé€šè¿‡'}")
-            print(f"  - æ—¶åºä¸€è‡´æ€§åˆ†æ•°: {results['temporal_consistency'].get('temporal_consistency_score', 0):.3f}")
-            print(f"  - æ€»ä½“åˆ†æ•°: {results['overall_assessment']['overall_score']:.3f}")
-            print(f"  - ç­›é€‰ç»“æœ: {'? é€šè¿‡' if results['overall_assessment']['passed'] else '? æœªé€šè¿‡'}")
-        
-        # ä¿å­˜æŠ¥å‘Š
-        if self.config['output']['save_report']:
-            self._save_report(results)
+            print(f"\n×ÛºÏÆÀ¹À½á¹û:")
+            print(f"  ×ËÌ¬¼ì²â: {'Í¨¹ı' if results['pose_quality']['passed'] else 'Î´Í¨¹ı'}")
+            print(f"  ¼ì²âÂÊ: {results['pose_quality']['detection_rate']:.2f}")
+            print(f"  Æ½¾ùÖÃĞÅ¶È: {results['pose_quality']['avg_confidence']:.2f}")
+            print(f"  Æ½¾ùÒì³£Êı: {results['pose_quality']['avg_anomalies']:.1f}")
+            print(f"  ×ÛºÏÆÀ·Ö: {results['overall_assessment']['overall_score']:.3f}")
+            print(f"  ×îÖÕ½á¹û: {'Í¨¹ı' if results['overall_assessment']['passed'] else 'Î´Í¨¹ı'}")
         
         return results
     
     def _calculate_overall_score(self, results: Dict) -> Dict:
         """
-        è®¡ç®—ç»¼åˆè¯„åˆ†
+        ¼ÆËã×ÛºÏÆÀ·Ö
         
         Args:
-            results: å„é¡¹è¯„ä¼°ç»“æœ
+            results: ¸÷ÏîÆÀ¹À½á¹û
             
         Returns:
-            ç»¼åˆè¯„ä¼°ç»“æœ
+            ×ÛºÏÆÀ¹À½á¹û
         """
-        # æå–å„é¡¹åˆ†æ•°
-        image_score = results['image_quality'].get('quality_score', 0)
-        pose_score = results['pose_quality'].get('avg_pose_quality_score', 1.0)
-        temporal_score = results['temporal_consistency'].get('temporal_consistency_score', 0)
+        pose_quality = results.get('pose_quality', {})
         
-        # åŠ æƒè®¡ç®—æ€»åˆ†
-        weights = {
-            'image': 0.35,
-            'pose': 0.30,
-            'temporal': 0.35
-        }
+        # »ù´¡·ÖÊı
+        detection_score = pose_quality.get('detection_rate', 0.0)
+        confidence_score = pose_quality.get('avg_confidence', 0.0)
+        anomaly_penalty = min(pose_quality.get('avg_anomalies', 0) / 5.0, 1.0)
         
-        overall_score = (
-            image_score * weights['image'] +
-            pose_score * weights['pose'] +
-            temporal_score * weights['temporal']
-        )
+        # ×ÛºÏÆÀ·Ö
+        overall_score = (detection_score * 0.4 + confidence_score * 0.4 + (1 - anomaly_penalty) * 0.2)
         
-        # æ”¶é›†æ‰€æœ‰é—®é¢˜
-        issues = []
-        
-        if not results['image_quality'].get('passed', True):
-            issues.append('å›¾åƒè´¨é‡ä¸è¾¾æ ‡')
-        
-        if not results['pose_quality'].get('passed', True):
-            anomaly_rate = results['pose_quality'].get('anomaly_rate', 0)
-            if anomaly_rate > 0:
-                issues.append(f'äººä½“å§¿æ€å¼‚å¸¸ï¼ˆå¼‚å¸¸ç‡: {anomaly_rate:.1%}ï¼‰')
-        
-        if not results['temporal_consistency'].get('passed', True):
-            issues.append('æ—¶åºä¸€è‡´æ€§ä¸è¶³')
-        
-        # æ£€æŸ¥æ˜¯å¦æœ‰é—ªçƒ
-        if results['temporal_consistency'].get('flicker_detection', {}).get('has_flicker', False):
-            issues.append('æ£€æµ‹åˆ°è§†é¢‘é—ªçƒ')
-        
-        # æ£€æŸ¥æ˜¯å¦æœ‰æŠ–åŠ¨
-        if results['temporal_consistency'].get('jitter_detection', {}).get('has_jitter', False):
-            issues.append('æ£€æµ‹åˆ°è§†é¢‘æŠ–åŠ¨')
-        
-        # åˆ¤æ–­æ˜¯å¦é€šè¿‡
-        pass_threshold = self.config['quality_thresholds']['overall_pass_score']
-        passed = overall_score >= pass_threshold and len(issues) == 0
+        # ÅĞ¶ÏÊÇ·ñÍ¨¹ı
+        threshold = self.config.get('quality_thresholds', {}).get('overall_pass_score', 0.6)
+        passed = overall_score >= threshold and pose_quality.get('passed', False)
         
         return {
-            'overall_score': float(overall_score),
+            'overall_score': overall_score,
+            'detection_score': detection_score,
+            'confidence_score': confidence_score,
+            'anomaly_penalty': anomaly_penalty,
             'passed': passed,
-            'issues': issues,
-            'recommendation': 'è¯¥è§†é¢‘è´¨é‡è‰¯å¥½ï¼Œå»ºè®®ä¿ç•™' if passed else f'è¯¥è§†é¢‘å­˜åœ¨é—®é¢˜ï¼Œå»ºè®®ç­›é™¤ã€‚é—®é¢˜: {"; ".join(issues)}'
+            'threshold': threshold
         }
-    
-    def _save_report(self, results: Dict):
-        """ä¿å­˜è¯„ä¼°æŠ¥å‘Š"""
-        video_name = Path(results['video_path']).stem
-        report_path = os.path.join(self.output_dir, f"{video_name}_report.json")
-        
-        # è½¬æ¢numpyç±»å‹ä¸ºPythonåŸç”Ÿç±»å‹
-        def convert_types(obj):
-            if isinstance(obj, np.integer):
-                return int(obj)
-            elif isinstance(obj, np.floating):
-                return float(obj)
-            elif isinstance(obj, np.ndarray):
-                return obj.tolist()
-            elif isinstance(obj, np.bool_):
-                return bool(obj)
-            elif isinstance(obj, dict):
-                return {k: convert_types(v) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [convert_types(v) for v in obj]
-            else:
-                return obj
-        
-        results_serializable = convert_types(results)
-        
-        with open(report_path, 'w', encoding='utf-8') as f:
-            json.dump(results_serializable, f, indent=2, ensure_ascii=False)
-        
-        print(f"æŠ¥å‘Šå·²ä¿å­˜è‡³: {report_path}")
     
     def batch_evaluate(self, video_dir: str, output_summary: str = None) -> List[Dict]:
         """
-        æ‰¹é‡è¯„ä¼°è§†é¢‘æ–‡ä»¶å¤¹ä¸­çš„æ‰€æœ‰è§†é¢‘
+        ÅúÁ¿ÆÀ¹ÀÊÓÆµ
         
         Args:
-            video_dir: è§†é¢‘æ–‡ä»¶å¤¹è·¯å¾„
-            output_summary: æ±‡æ€»æŠ¥å‘Šä¿å­˜è·¯å¾„
+            video_dir: ÊÓÆµÄ¿Â¼Â·¾¶
+            output_summary: Êä³öÕªÒªÎÄ¼şÂ·¾¶
             
         Returns:
-            æ‰€æœ‰è§†é¢‘çš„è¯„ä¼°ç»“æœåˆ—è¡¨
+            ËùÓĞÊÓÆµµÄÆÀ¹À½á¹û
         """
-        # æ”¯æŒçš„è§†é¢‘æ ¼å¼
-        video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv']
+        video_dir = Path(video_dir)
+        if not video_dir.exists():
+            raise ValueError(f"ÊÓÆµÄ¿Â¼²»´æÔÚ: {video_dir}")
         
-        # è·å–æ‰€æœ‰è§†é¢‘æ–‡ä»¶
+        # Ö§³ÖµÄÊÓÆµ¸ñÊ½
+        video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv']
         video_files = []
+        
         for ext in video_extensions:
-            # æœç´¢å°å†™æ‰©å±•å
-            lower_files = list(Path(video_dir).glob(f"*{ext}"))
-            # æœç´¢å¤§å†™æ‰©å±•å
-            upper_files = list(Path(video_dir).glob(f"*{ext.upper()}"))
-            
-            # åˆå¹¶å¹¶å»é‡ï¼ˆé¿å…åœ¨Windowsç³»ç»Ÿä¸­é‡å¤è®¡ç®—ï¼‰
-            all_files = lower_files + upper_files
-            # ä½¿ç”¨setå»é‡ï¼Œç„¶åè½¬æ¢å›list
-            unique_files = list(set(all_files))
-            video_files.extend(unique_files)
+            video_files.extend(video_dir.glob(f'*{ext}'))
+            video_files.extend(video_dir.glob(f'*{ext.upper()}'))
         
         if not video_files:
-            print(f"åœ¨ {video_dir} ä¸­æœªæ‰¾åˆ°è§†é¢‘æ–‡ä»¶")
+            print(f"ÔÚÄ¿Â¼ {video_dir} ÖĞÎ´ÕÒµ½ÊÓÆµÎÄ¼ş")
             return []
         
-        print(f"æ‰¾åˆ° {len(video_files)} ä¸ªè§†é¢‘æ–‡ä»¶ï¼Œå¼€å§‹æ‰¹é‡è¯„ä¼°...")
+        print(f"ÕÒµ½ {len(video_files)} ¸öÊÓÆµÎÄ¼ş")
         
         all_results = []
         passed_count = 0
         failed_count = 0
         
-        for video_path in tqdm(video_files, desc="è¯„ä¼°è¿›åº¦"):
-            result = self.evaluate_video(str(video_path), verbose=False)
-            all_results.append(result)
-            
-            if result['overall_assessment']['passed']:
-                passed_count += 1
-            else:
+        for video_file in tqdm(video_files, desc="´¦ÀíÊÓÆµ"):
+            try:
+                result = self.evaluate_video(str(video_file), verbose=False)
+                all_results.append(result)
+                
+                if result.get('overall_assessment', {}).get('passed', False):
+                    passed_count += 1
+                else:
+                    failed_count += 1
+                    
+            except Exception as e:
+                error_result = {
+                    'video_path': str(video_file),
+                    'error': str(e),
+                    'passed': False
+                }
+                all_results.append(error_result)
                 failed_count += 1
         
-        # æ‰“å°æ±‡æ€»
-        print(f"\næ‰¹é‡è¯„ä¼°å®Œæˆ!")
-        print(f"æ€»è®¡: {len(video_files)} ä¸ªè§†é¢‘")
-        print(f"é€šè¿‡: {passed_count} ä¸ª ({passed_count/len(video_files)*100:.1f}%)")
-        print(f"æœªé€šè¿‡: {failed_count} ä¸ª ({failed_count/len(video_files)*100:.1f}%)")
+        # Éú³ÉÕªÒª
+        summary = {
+            'total_videos': len(video_files),
+            'processed': len(all_results),
+            'passed': passed_count,
+            'failed': failed_count,
+            'pass_rate': passed_count / len(video_files) if video_files else 0,
+            'results': all_results
+        }
         
-        # ä¿å­˜æ±‡æ€»æŠ¥å‘Š
+        # ±£´æÕªÒª
         if output_summary:
-            summary = {
-                'total_videos': len(video_files),
-                'passed': passed_count,
-                'failed': failed_count,
-                'pass_rate': passed_count / len(video_files) if video_files else 0,
-                'results': all_results
-            }
-            
-            # è½¬æ¢numpyç±»å‹ä¸ºPythonåŸç”Ÿç±»å‹
+            # ×ª»»numpyÀàĞÍÎªPythonÔ­ÉúÀàĞÍ
             def convert_types(obj):
                 if isinstance(obj, np.integer):
                     return int(obj)
@@ -498,35 +355,123 @@ class VideoQualityFilter:
             with open(output_summary, 'w', encoding='utf-8') as f:
                 json.dump(summary_serializable, f, indent=2, ensure_ascii=False)
             
-            print(f"æ±‡æ€»æŠ¥å‘Šå·²ä¿å­˜è‡³: {output_summary}")
+            print(f"\nÕªÒªÒÑ±£´æµ½: {output_summary}")
+        
+        print(f"\nÅúÁ¿ÆÀ¹ÀÍê³É:")
+        print(f"  ×ÜÊÓÆµÊı: {len(video_files)}")
+        print(f"  Í¨¹ıÊı: {passed_count}")
+        print(f"  Î´Í¨¹ıÊı: {failed_count}")
+        print(f"  Í¨¹ıÂÊ: {passed_count/len(video_files)*100:.1f}%")
         
         return all_results
 
 
 def main():
-    """å‘½ä»¤è¡Œå…¥å£"""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='AIGCè§†é¢‘è´¨é‡ç­›é€‰å·¥å…·')
-    parser.add_argument('input', help='è¾“å…¥è§†é¢‘æ–‡ä»¶æˆ–æ–‡ä»¶å¤¹è·¯å¾„')
-    parser.add_argument('--config', default='config.yaml', help='é…ç½®æ–‡ä»¶è·¯å¾„')
-    parser.add_argument('--batch', action='store_true', help='æ‰¹é‡å¤„ç†æ¨¡å¼')
-    parser.add_argument('--output', help='è¾“å‡ºæŠ¥å‘Šè·¯å¾„')
+    """ÃüÁîĞĞÈë¿Úº¯Êı"""
+    parser = argparse.ArgumentParser(description='AIGCÊÓÆµÖÊÁ¿É¸Ñ¡Æ÷£¨YOLO°æ±¾£©')
+    parser.add_argument('input', help='ÊäÈëÊÓÆµÎÄ¼ş»òÄ¿Â¼Â·¾¶')
+    parser.add_argument('-o', '--output', help='Êä³öÕªÒªÎÄ¼şÂ·¾¶£¨¿ÉÑ¡£©')
+    parser.add_argument('-c', '--config', default='config.yaml', help='ÅäÖÃÎÄ¼şÂ·¾¶£¨Ä¬ÈÏ£ºconfig.yaml£©')
+    parser.add_argument('-v', '--verbose', action='store_true', help='ÏÔÊ¾ÏêÏ¸ĞÅÏ¢')
     
     args = parser.parse_args()
     
-    # åˆå§‹åŒ–ç­›é€‰å™¨
-    filter = VideoQualityFilter(args.config)
+    # ¼ì²éÊäÈëÂ·¾¶
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print(f"´íÎó: ÊäÈëÂ·¾¶²»´æÔÚ: {input_path}")
+        return 1
     
-    if args.batch:
-        # æ‰¹é‡æ¨¡å¼
-        output_path = args.output or os.path.join(filter.output_dir, 'batch_summary.json')
-        filter.batch_evaluate(args.input, output_path)
-    else:
-        # å•æ–‡ä»¶æ¨¡å¼
-        filter.evaluate_video(args.input)
+    try:
+        # ³õÊ¼»¯É¸Ñ¡Æ÷
+        print("³õÊ¼»¯AIGCÊÓÆµÖÊÁ¿É¸Ñ¡Æ÷£¨YOLO°æ±¾£©...")
+        filter = VideoQualityFilter(config_path=args.config)
+        
+        if input_path.is_file():
+            # µ¥¸öÊÓÆµÎÄ¼ş
+            print(f"\n¿ªÊ¼ÆÀ¹ÀÊÓÆµ: {input_path}")
+            print("="*60)
+            
+            result = filter.evaluate_video(str(input_path), verbose=args.verbose)
+            
+            # ÏÔÊ¾½á¹û
+            if args.verbose:
+                print("\n" + "="*60)
+                print("ÆÀ¹À½á¹ûÏêÇé:")
+                print("="*60)
+                
+                # ÊÓÆµ»ù±¾ĞÅÏ¢
+                print("\n¡¾ÊÓÆµĞÅÏ¢¡¿")
+                video_info = result['video_info']
+                print(f"  ·Ö±æÂÊ: {video_info['width']}x{video_info['height']}")
+                print(f"  Ö¡ÂÊ: {video_info['fps']:.2f} fps")
+                print(f"  Ê±³¤: {video_info['duration']:.2f} Ãë")
+                print(f"  ×ÜÖ¡Êı: {video_info['total_frames']}")
+                
+                # ÈËÌå×ËÌ¬
+                print("\n¡¾ÈËÌå×ËÌ¬¼ì²â¡¿")
+                pose_quality = result['pose_quality']
+                print(f"  ¼ì²â×´Ì¬: {'¼ì²âµ½ÈËÌå' if pose_quality['pose_detected'] else 'Î´¼ì²âµ½ÈËÌå'}")
+                print(f"  ¼ì²âÂÊ: {pose_quality['detection_rate']:.2f}")
+                print(f"  Æ½¾ùÖÃĞÅ¶È: {pose_quality['avg_confidence']:.2f}")
+                print(f"  Æ½¾ùÒì³£Êı: {pose_quality['avg_anomalies']:.1f}")
+                print(f"  ¼ì²âÖ¡Êı: {pose_quality['detected_frames']}/{pose_quality['total_frames']}")
+                print(f"  ×´Ì¬: {'? Í¨¹ı' if pose_quality['passed'] else '? Î´Í¨¹ı'}")
+                
+                # ×ÛºÏÆÀ¹À
+                print("\n¡¾×ÛºÏÆÀ¹À¡¿")
+                overall = result['overall_assessment']
+                print(f"  ×ÛºÏÆÀ·Ö: {overall['overall_score']:.3f}")
+                print(f"  ¼ì²â·ÖÊı: {overall['detection_score']:.3f}")
+                print(f"  ÖÃĞÅ¶È·ÖÊı: {overall['confidence_score']:.3f}")
+                print(f"  Òì³£³Í·£: {overall['anomaly_penalty']:.3f}")
+                print(f"  Í¨¹ıãĞÖµ: {overall['threshold']:.3f}")
+                print(f"  ×îÖÕ½á¹û: {'? Í¨¹ı' if overall['passed'] else '? Î´Í¨¹ı'}")
+            else:
+                # ¼ò»¯Êä³ö
+                pose_quality = result['pose_quality']
+                overall = result['overall_assessment']
+                status = "? Í¨¹ı" if overall['passed'] else "? Î´Í¨¹ı"
+                print(f"½á¹û: {status} (ÆÀ·Ö: {overall['overall_score']:.3f}, ¼ì²âÂÊ: {pose_quality['detection_rate']:.2f})")
+            
+            return 0 if result['overall_assessment']['passed'] else 1
+            
+        else:
+            # ÅúÁ¿´¦ÀíÄ¿Â¼
+            print(f"\n¿ªÊ¼ÅúÁ¿ÆÀ¹ÀÊÓÆµÄ¿Â¼: {input_path}")
+            print("="*60)
+            
+            results = filter.batch_evaluate(str(input_path), args.output)
+            
+            if not results:
+                print("Ã»ÓĞÕÒµ½ÊÓÆµÎÄ¼ş»ò´¦ÀíÊ§°Ü")
+                return 1
+            
+            # ÏÔÊ¾Í³¼ÆĞÅÏ¢
+            total_videos = len(results)
+            passed_videos = sum(1 for r in results if r.get('overall_assessment', {}).get('passed', False))
+            failed_videos = total_videos - passed_videos
+            
+            print(f"\nÅúÁ¿ÆÀ¹ÀÍê³É:")
+            print(f"  ×ÜÊÓÆµÊı: {total_videos}")
+            print(f"  Í¨¹ıÊı: {passed_videos}")
+            print(f"  Î´Í¨¹ıÊı: {failed_videos}")
+            print(f"  Í¨¹ıÂÊ: {passed_videos/total_videos*100:.1f}%")
+            
+            if args.output:
+                print(f"  ÏêÏ¸½á¹ûÒÑ±£´æµ½: {args.output}")
+            
+            return 0 if passed_videos > 0 else 1
+            
+    except ImportError as e:
+        print(f"µ¼Èë´íÎó: {e}")
+        print("ÇëÈ·±£ÒÑ°²×°ËùĞèÒÀÀµ: pip install -r requirements.txt")
+        return 1
+    except Exception as e:
+        print(f"ÔËĞĞ´íÎó: {e}")
+        return 1
 
 
-if __name__ == '__main__':
-    main()
-
+if __name__ == "__main__":
+    exit_code = main()
+    sys.exit(exit_code)
