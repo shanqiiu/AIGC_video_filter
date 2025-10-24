@@ -1,7 +1,7 @@
 """
-»ùÓÚYOLOµÄÈËÌå×ËÌ¬Òì³£¼ì²âÄ£¿é
+åŸºäºYOLOçš„äººä½“å§¿æ€å¼‚å¸¸æ£€æµ‹æ¨¡å—
 
-ÒÀÀµ£º
+ä¾èµ–ï¼š
 pip install ultralytics  # YOLOv8
 """
 
@@ -15,27 +15,27 @@ try:
     YOLO_AVAILABLE = True
 except ImportError:
     YOLO_AVAILABLE = False
-    print("¾¯¸æ: ultralyticsÎ´°²×°£¬YOLO¼ì²â²»¿ÉÓÃ¡£Ê¹ÓÃ 'pip install ultralytics' °²×°")
+    print("è­¦å‘Š: ultralyticsæœªå®‰è£…ï¼ŒYOLOæ£€æµ‹ä¸å¯ç”¨ã€‚ä½¿ç”¨ 'pip install ultralytics' å®‰è£…")
 
 
 class PoseAnomalyDetectorYOLO:
-    """»ùÓÚYOLOµÄÈËÌå×ËÌ¬Òì³£¼ì²âÆ÷"""
+    """åŸºäºYOLOçš„äººä½“å§¿æ€å¼‚å¸¸æ£€æµ‹å™¨"""
     
-    def __init__(self, config: dict = None, model_path: str = 'yolov8n-pose.pt'):
+    def __init__(self, config: dict = None, model_path: str = '../third_party/pretrained_models/yolov8n-pose.pt'):
         """
-        ³õÊ¼»¯YOLO×ËÌ¬¼ì²âÆ÷
+        åˆå§‹åŒ–YOLOå§¿æ€æ£€æµ‹å™¨
         
         Args:
-            config: ÅäÖÃ×Öµä
-            model_path: YOLOÄ£ĞÍÂ·¾¶£¨Ä¬ÈÏÊ¹ÓÃyolov8n-pose£©
+            config: é…ç½®å­—å…¸
+            model_path: YOLOæ¨¡å‹è·¯å¾„ï¼ˆé»˜è®¤ä½¿ç”¨yolov8n-poseï¼‰
         """
         if not YOLO_AVAILABLE:
-            raise ImportError("ĞèÒª°²×°ultralytics: pip install ultralytics")
+            raise ImportError("éœ€è¦å®‰è£…ultralytics: pip install ultralytics")
         
         self.config = config or {}
         self.model = YOLO(model_path)
         
-        # YOLO-Pose¹Ø¼üµã¶¨Òå£¨17¸ö¹Ø¼üµã£©
+        # YOLO-Poseå…³é”®ç‚¹å®šä¹‰ï¼ˆ17ä¸ªå…³é”®ç‚¹ï¼‰
         self.keypoint_names = [
             'nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
             'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow',
@@ -47,38 +47,38 @@ class PoseAnomalyDetectorYOLO:
     
     def detect_pose(self, image: np.ndarray) -> Optional[Dict]:
         """
-        Ê¹ÓÃYOLO¼ì²âÈËÌå×ËÌ¬
+        ä½¿ç”¨YOLOæ£€æµ‹äººä½“å§¿æ€
         
         Args:
-            image: ÊäÈëÍ¼Ïñ (BGR¸ñÊ½)
+            image: è¾“å…¥å›¾åƒ (BGRæ ¼å¼)
             
         Returns:
-            ×ËÌ¬¼ì²â½á¹û
+            å§¿æ€æ£€æµ‹ç»“æœ
         """
-        # YOLOÍÆÀí
+        # YOLOæ¨ç†
         results = self.model(image, verbose=False)
         
         if len(results) == 0 or results[0].keypoints is None:
             return None
         
-        # »ñÈ¡ÖÃĞÅ¶È×î¸ßµÄÈËÎï
+        # è·å–ç½®ä¿¡åº¦æœ€é«˜çš„äººç‰©
         keypoints_data = results[0].keypoints
         if keypoints_data.xy.shape[0] == 0:
             return None
         
-        # È¡µÚÒ»¸ö¼ì²âµ½µÄÈË£¨»òÖÃĞÅ¶È×î¸ßµÄ£©
+        # å–ç¬¬ä¸€ä¸ªæ£€æµ‹åˆ°çš„äººï¼ˆæˆ–ç½®ä¿¡åº¦æœ€é«˜çš„ï¼‰
         keypoints_xy = keypoints_data.xy[0].cpu().numpy()  # [17, 2]
         keypoints_conf = keypoints_data.conf[0].cpu().numpy() if keypoints_data.conf is not None else np.ones(17)
         
-        # ×ª»»Îª×Öµä¸ñÊ½
+        # è½¬æ¢ä¸ºå­—å…¸æ ¼å¼
         landmarks = []
         for i, (x, y) in enumerate(keypoints_xy):
-            # ¹éÒ»»¯×ø±ê
+            # å½’ä¸€åŒ–åæ ‡
             h, w = image.shape[:2]
             landmarks.append({
                 'x': float(x / w),
                 'y': float(y / h),
-                'z': 0.0,  # YOLO-Pose²»Ìá¹©Éî¶ÈĞÅÏ¢
+                'z': 0.0,  # YOLO-Poseä¸æä¾›æ·±åº¦ä¿¡æ¯
                 'visibility': float(keypoints_conf[i]),
                 'name': self.keypoint_names[i]
             })
@@ -91,19 +91,19 @@ class PoseAnomalyDetectorYOLO:
     
     def check_body_proportions(self, landmarks: List[Dict], image_shape: Tuple) -> Dict[str, any]:
         """
-        ¼ì²éÉíÌå±ÈÀı
+        æ£€æŸ¥èº«ä½“æ¯”ä¾‹
         
         Args:
-            landmarks: ¹Ø¼üµãÁĞ±í
-            image_shape: Í¼Ïñ³ß´ç
+            landmarks: å…³é”®ç‚¹åˆ—è¡¨
+            image_shape: å›¾åƒå°ºå¯¸
             
         Returns:
-            ±ÈÀı¼ì²é½á¹û
+            æ¯”ä¾‹æ£€æŸ¥ç»“æœ
         """
         results = {}
         anomalies = []
         
-        # ¹Ø¼üµãË÷Òı
+        # å…³é”®ç‚¹ç´¢å¼•
         NOSE = 0
         LEFT_SHOULDER = 5
         RIGHT_SHOULDER = 6
@@ -124,14 +124,14 @@ class PoseAnomalyDetectorYOLO:
             return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
         
         try:
-            # ¼ì²é¼ç¿íÊÇ·ñºÏÀí
+            # æ£€æŸ¥è‚©å®½æ˜¯å¦åˆç†
             if is_visible(LEFT_SHOULDER) and is_visible(RIGHT_SHOULDER):
                 shoulder_width = calculate_distance(
                     landmarks[LEFT_SHOULDER], landmarks[RIGHT_SHOULDER]
                 )
                 
                 if is_visible(NOSE):
-                    # Í·¿í¼ç±È
+                    # å¤´å®½è‚©æ¯”
                     head_shoulder_dist = calculate_distance(
                         landmarks[NOSE], landmarks[LEFT_SHOULDER]
                     )
@@ -140,11 +140,11 @@ class PoseAnomalyDetectorYOLO:
                         head_shoulder_ratio = head_shoulder_dist / shoulder_width
                         results['head_shoulder_ratio'] = head_shoulder_ratio
                         
-                        # Í·²¿µ½¼ç°ò¾àÀëÓ¦¸ÃºÏÀí
+                        # å¤´éƒ¨åˆ°è‚©è†€è·ç¦»åº”è¯¥åˆç†
                         if head_shoulder_ratio < 0.2 or head_shoulder_ratio > 0.6:
-                            anomalies.append(f"Í·¼ç±ÈÀıÒì³£: {head_shoulder_ratio:.2f}")
+                            anomalies.append(f"å¤´è‚©æ¯”ä¾‹å¼‚å¸¸: {head_shoulder_ratio:.2f}")
             
-            # ¼ì²é´óĞ¡ÍÈ±ÈÀı
+            # æ£€æŸ¥å¤§å°è…¿æ¯”ä¾‹
             if all(is_visible(i) for i in [LEFT_HIP, LEFT_KNEE, LEFT_ANKLE, RIGHT_HIP, RIGHT_KNEE, RIGHT_ANKLE]):
                 left_thigh = calculate_distance(landmarks[LEFT_HIP], landmarks[LEFT_KNEE])
                 left_calf = calculate_distance(landmarks[LEFT_KNEE], landmarks[LEFT_ANKLE])
@@ -159,7 +159,7 @@ class PoseAnomalyDetectorYOLO:
                     results['thigh_calf_ratio'] = thigh_calf_ratio
                     
                     if thigh_calf_ratio > 1.3 or thigh_calf_ratio < 0.5:
-                        anomalies.append(f"´óĞ¡ÍÈ±ÈÀıÒì³£: {thigh_calf_ratio:.2f}")
+                        anomalies.append(f"å¤§å°è…¿æ¯”ä¾‹å¼‚å¸¸: {thigh_calf_ratio:.2f}")
         
         except Exception as e:
             results['error'] = str(e)
@@ -170,11 +170,11 @@ class PoseAnomalyDetectorYOLO:
         return results
     
     def check_joint_angles(self, landmarks: List[Dict], image_shape: Tuple) -> Dict[str, any]:
-        """¼ì²é¹Ø½Ú½Ç¶È"""
+        """æ£€æŸ¥å…³èŠ‚è§’åº¦"""
         results = {}
         anomalies = []
         
-        # ¹Ø¼üµãË÷Òı
+        # å…³é”®ç‚¹ç´¢å¼•
         LEFT_SHOULDER = 5
         LEFT_ELBOW = 7
         LEFT_WRIST = 9
@@ -186,7 +186,7 @@ class PoseAnomalyDetectorYOLO:
             return idx < len(landmarks) and landmarks[idx]['visibility'] > self.confidence_threshold
         
         def calculate_angle(p1, p2, p3):
-            """¼ÆËãÈıµãĞÎ³ÉµÄ½Ç¶È"""
+            """è®¡ç®—ä¸‰ç‚¹å½¢æˆçš„è§’åº¦"""
             h, w = image_shape[:2]
             v1 = np.array([p1['x'] * w - p2['x'] * w, p1['y'] * h - p2['y'] * h])
             v2 = np.array([p3['x'] * w - p2['x'] * w, p3['y'] * h - p2['y'] * h])
@@ -196,7 +196,7 @@ class PoseAnomalyDetectorYOLO:
             return math.degrees(angle)
         
         try:
-            # ¼ì²éÖâ¹Ø½Ú
+            # æ£€æŸ¥è‚˜å…³èŠ‚
             if all(is_visible(i) for i in [LEFT_SHOULDER, LEFT_ELBOW, LEFT_WRIST]):
                 left_elbow_angle = calculate_angle(
                     landmarks[LEFT_SHOULDER], landmarks[LEFT_ELBOW], landmarks[LEFT_WRIST]
@@ -204,9 +204,9 @@ class PoseAnomalyDetectorYOLO:
                 results['left_elbow_angle'] = left_elbow_angle
                 
                 if left_elbow_angle < 20 or left_elbow_angle > 210:
-                    anomalies.append(f"×óÖâ¹Ø½Ú½Ç¶ÈÒì³£: {left_elbow_angle:.1f}¡ã")
+                    anomalies.append(f"å·¦è‚˜å…³èŠ‚è§’åº¦å¼‚å¸¸: {left_elbow_angle:.1f}Â°")
             
-            # ¼ì²éÏ¥¹Ø½Ú
+            # æ£€æŸ¥è†å…³èŠ‚
             if all(is_visible(i) for i in [LEFT_HIP, LEFT_KNEE, LEFT_ANKLE]):
                 left_knee_angle = calculate_angle(
                     landmarks[LEFT_HIP], landmarks[LEFT_KNEE], landmarks[LEFT_ANKLE]
@@ -214,7 +214,7 @@ class PoseAnomalyDetectorYOLO:
                 results['left_knee_angle'] = left_knee_angle
                 
                 if left_knee_angle < 20 or left_knee_angle > 210:
-                    anomalies.append(f"×óÏ¥¹Ø½Ú½Ç¶ÈÒì³£: {left_knee_angle:.1f}¡ã")
+                    anomalies.append(f"å·¦è†å…³èŠ‚è§’åº¦å¼‚å¸¸: {left_knee_angle:.1f}Â°")
         
         except Exception as e:
             results['error'] = str(e)
@@ -226,41 +226,41 @@ class PoseAnomalyDetectorYOLO:
     
     def evaluate(self, image: np.ndarray) -> Dict[str, any]:
         """
-        ×ÛºÏÆÀ¹ÀÈËÌå×ËÌ¬
+        ç»¼åˆè¯„ä¼°äººä½“å§¿æ€
         
         Args:
-            image: ÊäÈëÍ¼Ïñ
+            image: è¾“å…¥å›¾åƒ
             
         Returns:
-            ÍêÕûµÄ×ËÌ¬ÆÀ¹À½á¹û
+            å®Œæ•´çš„å§¿æ€è¯„ä¼°ç»“æœ
         """
-        # YOLO¼ì²â
+        # YOLOæ£€æµ‹
         pose_result = self.detect_pose(image)
         
         if pose_result is None:
             return {
                 'has_person': False,
                 'pose_detected': False,
-                'message': 'Î´¼ì²âµ½ÈËÌå',
+                'message': 'æœªæ£€æµ‹åˆ°äººä½“',
                 'method': 'YOLO'
             }
         
         landmarks = pose_result['landmarks']
         
-        # ¸÷Ïî¼ì²é
+        # å„é¡¹æ£€æŸ¥
         proportion_results = self.check_body_proportions(landmarks, image.shape)
         angle_results = self.check_joint_angles(landmarks, image.shape)
         
-        # ÊÕ¼¯ËùÓĞÒì³£
+        # æ”¶é›†æ‰€æœ‰å¼‚å¸¸
         all_anomalies = (
             proportion_results.get('anomalies', []) +
             angle_results.get('anomalies', [])
         )
         
-        # ¼ÆËãÖÃĞÅ¶È
+        # è®¡ç®—ç½®ä¿¡åº¦
         avg_visibility = np.mean([lm['visibility'] for lm in landmarks])
         
-        # ¼ÆËãÖÊÁ¿·ÖÊı
+        # è®¡ç®—è´¨é‡åˆ†æ•°
         anomaly_count = len(all_anomalies)
         anomaly_score = min(anomaly_count / 5.0, 1.0)
         pose_quality_score = (1.0 - anomaly_score) * avg_visibility
@@ -278,22 +278,22 @@ class PoseAnomalyDetectorYOLO:
             'anomaly_count': anomaly_count,
             'pose_quality_score': float(pose_quality_score),
             'is_pose_normal': anomaly_count == 0 and avg_visibility > 0.5,
-            'note': f'Ê¹ÓÃYOLO¼ì²â£¬ÖÃĞÅ¶È: {avg_visibility:.2f}'
+            'note': f'ä½¿ç”¨YOLOæ£€æµ‹ï¼Œç½®ä¿¡åº¦: {avg_visibility:.2f}'
         }
 
 
-# ±ã½İº¯Êı£º»ñÈ¡YOLO¼ì²âÆ÷
+# ä¾¿æ·å‡½æ•°ï¼šè·å–YOLOæ£€æµ‹å™¨
 def get_pose_detector(config: dict = None):
     """
-    »ñÈ¡YOLO×ËÌ¬¼ì²âÆ÷
+    è·å–YOLOå§¿æ€æ£€æµ‹å™¨
     
     Args:
-        config: ÅäÖÃ×Öµä
+        config: é…ç½®å­—å…¸
         
     Returns:
-        YOLO×ËÌ¬¼ì²âÆ÷ÊµÀı
+        YOLOå§¿æ€æ£€æµ‹å™¨å®ä¾‹
     """
     if YOLO_AVAILABLE:
         return PoseAnomalyDetectorYOLO(config)
     else:
-        raise ImportError("YOLO²»¿ÉÓÃ£¬Çë°²×°ultralytics: pip install ultralytics")
+        raise ImportError("YOLOä¸å¯ç”¨ï¼Œè¯·å®‰è£…ultralytics: pip install ultralytics")
