@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Tuple
 from tqdm import tqdm
 
 from detectors import PoseAnomalyDetectorYOLO, YOLO_AVAILABLE
+from visualization import VideoVisualizer
 
 
 class VideoQualityFilter:
@@ -39,6 +40,9 @@ class VideoQualityFilter:
         output_dir = self.config.get('output', {}).get('output_dir', './results')
         os.makedirs(output_dir, exist_ok=True)
         self.output_dir = output_dir
+        
+        # 初始化可视化器
+        self.visualizer = VideoVisualizer(self.config)
     
     def _load_config(self, config_path: str) -> dict:
         """加载配置文件"""
@@ -234,6 +238,22 @@ class VideoQualityFilter:
         # 计算综合评分
         results['overall_assessment'] = self._calculate_overall_score(results)
         
+        # 生成可视化结果
+        if self.config.get('visualization', {}).get('enable_visualization', False):
+            try:
+                visualization_files = self.visualizer.visualize_video_results(video_path, frames, results)
+                results['visualization_files'] = visualization_files
+                
+                if verbose:
+                    print(f"\n可视化结果已保存:")
+                    for viz_type, files in visualization_files.items():
+                        if files:
+                            print(f"  {viz_type}: {len(files)} 个文件")
+            except Exception as e:
+                if verbose:
+                    print(f"可视化生成失败: {e}")
+                results['visualization_error'] = str(e)
+        
         if verbose:
             print(f"\n综合评估结果:")
             print(f"  姿态检测: {'通过' if results['pose_quality']['passed'] else '未通过'}")
@@ -392,6 +412,11 @@ def main():
     parser.add_argument('-o', '--output', help='输出摘要文件路径（可选）')
     parser.add_argument('-c', '--config', default='config.yaml', help='配置文件路径（默认：config.yaml）')
     parser.add_argument('-v', '--verbose', action='store_true', help='显示详细信息')
+    parser.add_argument('--enable-viz', action='store_true', help='启用可视化功能')
+    parser.add_argument('--save-pose', action='store_true', help='保存姿态检测图像')
+    parser.add_argument('--save-anomaly', action='store_true', help='保存异常检测图像')
+    parser.add_argument('--save-comparison', action='store_true', help='保存对比图像')
+    parser.add_argument('--save-charts', action='store_true', help='保存统计图表')
     
     args = parser.parse_args()
     
@@ -402,9 +427,43 @@ def main():
         return 1
     
     try:
+        # 处理可视化参数
+        if args.enable_viz or args.save_pose or args.save_anomaly or args.save_comparison or args.save_charts:
+            # 动态更新配置以启用可视化
+            import yaml
+            config_path = args.config
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = yaml.safe_load(f)
+            else:
+                config = {}
+            
+            # 确保可视化配置存在
+            if 'visualization' not in config:
+                config['visualization'] = {}
+            
+            # 根据命令行参数更新可视化设置
+            if args.enable_viz:
+                config['visualization']['enable_visualization'] = True
+            if args.save_pose:
+                config['visualization']['save_pose_images'] = True
+            if args.save_anomaly:
+                config['visualization']['save_anomaly_images'] = True
+            if args.save_comparison:
+                config['visualization']['save_comparison_images'] = True
+            if args.save_charts:
+                config['visualization']['save_statistics_charts'] = True
+            
+            # 保存临时配置文件
+            temp_config_path = 'temp_config_with_viz.yaml'
+            with open(temp_config_path, 'w', encoding='utf-8') as f:
+                yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+            
+            config_path = temp_config_path
+        
         # 初始化筛选器
         print("初始化AIGC视频质量筛选器（YOLO版本）...")
-        filter = VideoQualityFilter(config_path=args.config)
+        filter = VideoQualityFilter(config_path=config_path)
         
         if input_path.is_file():
             # 单个视频文件
@@ -489,6 +548,10 @@ def main():
     except Exception as e:
         print(f"运行错误: {e}")
         return 1
+    finally:
+        # 清理临时配置文件
+        if 'temp_config_path' in locals() and os.path.exists(temp_config_path):
+            os.remove(temp_config_path)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,23 @@ video_processing:
   resize_height: 720              # 处理时的视频高度
   resize_width: 1280              # 处理时的视频宽度
 
+# 可视化设置
+visualization:
+  enable_visualization: false     # 是否启用可视化功能
+  save_pose_images: false         # 保存姿态检测结果图像
+  save_anomaly_images: false      # 保存异常检测结果图像
+  save_comparison_images: false   # 保存原始帧与检测结果对比图
+  save_statistics_charts: false   # 保存统计图表
+  pose_skeleton_color: [0, 255, 0]  # 姿态骨架颜色 (BGR)
+  anomaly_color: [0, 0, 255]     # 异常标注颜色 (BGR)
+  confidence_color: [255, 0, 0]  # 置信度标注颜色 (BGR)
+  line_thickness: 2              # 绘制线条粗细
+  font_scale: 0.6                # 字体大小
+  show_confidence: true          # 显示置信度数值
+  show_keypoint_names: false     # 显示关键点名称
+
 # 输出设置
 output:
   save_report: true               # 保存详细报告
   output_dir: "./results"         # 输出目录
+  visualization_dir: "./results/visualizations"  # 可视化结果目录
