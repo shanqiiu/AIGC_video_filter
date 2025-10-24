@@ -1,0 +1,44 @@
+# AIGC视频质量筛选配置文件
+
+# 质量阈值设置
+quality_thresholds:
+  # 图像质量指标
+  blur_threshold: 100.0          # 模糊度阈值（越高越清晰）
+  noise_threshold: 30.0          # 噪声阈值（越低越好）
+  contrast_threshold: 30.0       # 对比度阈值
+  sharpness_threshold: 50.0      # 锐度阈值
+  
+  # 人体姿态指标
+  pose_confidence_threshold: 0.5  # 姿态检测置信度
+  joint_angle_threshold: 30.0     # 关节角度异常阈值（度）
+  body_ratio_threshold: 0.3       # 身体比例异常阈值
+  
+  # 时序一致性指标
+  temporal_consistency_threshold: 0.85  # 时序一致性阈值
+  motion_smoothness_threshold: 0.7      # 运动平滑度阈值
+  
+  # 综合评分
+  overall_pass_score: 0.6        # 总体通过分数（0-1）
+
+# 检测模块开关
+detection_modules:
+  enable_blur_detection: true
+  enable_noise_detection: true
+  enable_distortion_detection: true
+  enable_pose_detection: true
+  enable_temporal_consistency: true
+  enable_aesthetic_scoring: false  # 可选：需要额外模型
+
+# 视频处理参数
+video_processing:
+  sample_fps: 10                  # 采样帧率（从视频中提取帧的频率）
+  max_frames: 30                  # 最大处理帧数（约3秒）
+  resize_height: 720              # 处理时的视频高度
+  resize_width: 1280              # 处理时的视频宽度
+
+# 输出设置
+output:
+  save_report: true               # 保存详细报告
+  save_visualization: true        # 保存可视化结果
+  output_dir: "./results"         # 输出目录
+
